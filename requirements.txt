@@ -1,0 +1,17 @@
+django>=5.2.8
+fastapi>=0.95
+uvicorn[standard]>=1.5
+pandas>=2.0
+numpy>=1.25
+streamlit>=1.25
+python-dotenv>=1.0
+# Optional/third-party (install as needed for full AI features):
+# crewai, crewai-tools, langchain-google-genai (these may be private or custom packages)
+# The following packages are optional and required only for the real AI/agent flow
+# Uncomment/install as needed:
+crewai>=0.0.1
+crewai-tools>=0.0.1
+langchain-google-genai>=0.0.1
+google-auth>=2.0
+google-api-python-client>=2.0
+requests>=2.0
