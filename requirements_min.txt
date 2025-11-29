@@ -1,6 +1,6 @@
 django>=5.2.8
 fastapi>=0.95
-uvicorn[standard]>=1.5
+uvicorn[standard]>=0.5
 pandas>=2.0
 numpy>=1.25
 streamlit>=1.25

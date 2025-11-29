@@ -9,3 +9,18 @@ class AgentLog(models.Model):
 
     def __str__(self):
         return f"{self.machine_id} - {self.status}"
+
+class SensorReading(models.Model):
+    machine_id = models.CharField(max_length=100, db_index=True)
+    vibration = models.FloatField()
+    temperature = models.FloatField()
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['machine_id', '-timestamp']),
+        ]
+
+    def __str__(self):
+        return f"{self.machine_id} - {self.timestamp}"

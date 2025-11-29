@@ -2,17 +2,19 @@ import streamlit as st
 import pandas as pd
 import requests
 import time
-
-st.title("🛡️ PraxisGuard: Hospital Defense")
-
-import streamlit as st
-import pandas as pd
-import requests
-import time
 import os
+import sys
+import django
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Setup Django
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'hackathon_core'))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hackathon_core.settings')
+django.setup()
+
+from core_db.models import SensorReading
 
 # Page config and styling
 st.set_page_config(page_title="PraxisGuard Dashboard", layout="wide")
@@ -36,13 +38,26 @@ st.markdown(
 st.title("🛡️ PraxisGuard: Hospital Defense")
 
 # Utility functions
-def load_data(path="live_sensor_stream.csv"):
-    if not os.path.exists(path):
+def load_data_from_db(limit=1000):
+    """Load sensor data from MySQL database"""
+    try:
+        readings = SensorReading.objects.all().order_by('-timestamp')[:limit]
+        if not readings:
+            return pd.DataFrame(columns=["timestamp", "machine_id", "vibration", "temperature"])
+        
+        data = [{
+            'timestamp': r.timestamp,
+            'machine_id': r.machine_id,
+            'vibration': r.vibration,
+            'temperature': r.temperature
+        } for r in readings]
+        
+        df = pd.DataFrame(data)
+        df = df.sort_values('timestamp', ascending=True).reset_index(drop=True)
+        return df
+    except Exception as e:
+        print(f"Error loading data from DB: {e}")
         return pd.DataFrame(columns=["timestamp", "machine_id", "vibration", "temperature"])
-    df = pd.read_csv(path)
-    if not df.empty:
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-    return df
 
 def machines_from_df(df):
     if df.empty:
@@ -57,7 +72,7 @@ def compute_pof(vibration, temperature, vib_thresh=80.0, temp_thresh=90.0):
     return round(pof, 3)
 
 
-df = load_data()
+df = load_data_from_db()
 
 col_left, col_right = st.columns([3, 1])
 

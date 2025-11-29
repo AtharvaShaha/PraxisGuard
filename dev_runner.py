@@ -38,7 +38,7 @@ def main():
 
     commands = [
         ("SIM", [python, "simulate_live_server.py"], root),
-        ("API", [python, "-m", "uvicorn", "hackathon_core.run_api:app", "--reload"], root),
+        ("API", [python, "-m", "uvicorn", "api:app", "--reload", "--host", "0.0.0.0", "--port", "8000"], root),
         ("UI", [python, "-m", "streamlit", "run", "dashboard.py"], root),
     ]
 

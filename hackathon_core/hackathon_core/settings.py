@@ -75,9 +75,26 @@ WSGI_APPLICATION = 'hackathon_core.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        # PostgreSQL NeonDB Configuration
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'neondb',
+        'USER': 'neondb_owner',
+        'PASSWORD': 'npg_UtnlcBap4h9G',
+        'HOST': 'ep-calm-math-a1vvkyrp-pooler.ap-southeast-1.aws.neon.tech',
+        'PORT': '5432',
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
+    # Old MySQL Configuration (commented out)
+    # 'default': {
+    #     'ENGINE':'django.db.backends.mysql',
+    #     'NAME':'agentic',
+    #     'USER':'root',
+    #     'PASSWORD':'Achukuchu@123',
+    #     'HOST':'localhost',
+    #     'PORT':'3306'
+    # }
 }
 
 

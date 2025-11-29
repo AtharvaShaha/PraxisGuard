@@ -84,7 +84,8 @@ except Exception:
 
 try:
     from langchain_google_genai import ChatGoogleGenerativeAI
-    has_real_llm = True
+    # Only use real LLM if GOOGLE_API_KEY is set
+    has_real_llm = bool(os.getenv("GOOGLE_API_KEY"))
 except Exception:
     # Fallback LLM stub (non-functional, prevents import errors)
     has_real_llm = False
