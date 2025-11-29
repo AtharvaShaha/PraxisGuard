@@ -1,0 +1,579 @@
+{
+  "name": "Predictive Medical Equipment Maintenance and Crisis Response System",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "052b69f4-9555-4486-af71-c7a1d6995e8a",
+      "name": "Monitor Equipment Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "52c97bf1-bad5-4f71-89fc-d5d9fef97410",
+              "name": "iotApiUrl",
+              "value": "https://986c1d39d419.ngrok-free.app",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "5c56541e-bfa4-4655-9a61-058490058b63",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        128,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.iotApiUrl }}/api/iot/sensors",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "41a26d7b-4858-4ca7-bf59-7bf895d86589",
+      "name": "Fetch IoT Sensor Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        560,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze sensor data and calculate probability of failure for each device\n// over the next 72 hours\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const sensorData = item.json;\n  \n  // Extract sensor readings\n  const vibration = sensorData.vibration || 0;\n  const temperature = sensorData.temperature || 0;\n  const errorCodes = sensorData.errorCodes || [];\n  const deviceId = sensorData.deviceId || 'UNKNOWN';\n  const equipmentType = sensorData.equipmentType || 'Unknown';\n  \n  // Predictive maintenance model logic\n  // Calculate base risk scores for each factor\n  let vibrationRisk = 0;\n  if (vibration > 40) vibrationRisk = 0.3;\n  if (vibration > 50) vibrationRisk = 0.5;\n  if (vibration > 60) vibrationRisk = 0.7;\n  \n  let temperatureRisk = 0;\n  if (temperature > 70) temperatureRisk = 0.2;\n  if (temperature > 80) temperatureRisk = 0.4;\n  if (temperature > 90) temperatureRisk = 0.6;\n  \n  let errorCodeRisk = 0;\n  if (errorCodes.length > 0) errorCodeRisk = 0.2;\n  if (errorCodes.length > 2) errorCodeRisk = 0.4;\n  if (errorCodes.length > 4) errorCodeRisk = 0.6;\n  \n  // Calculate combined Probability of Failure (PoF)\n  // Using weighted average with some interaction effects\n  let probabilityOfFailure = (vibrationRisk * 0.4) + (temperatureRisk * 0.3) + (errorCodeRisk * 0.3);\n  \n  // Add interaction effect if multiple factors are high\n  if (vibrationRisk > 0.5 && temperatureRisk > 0.3) {\n    probabilityOfFailure += 0.15;\n  }\n  \n  // Cap at 0.95 (95% probability)\n  probabilityOfFailure = Math.min(probabilityOfFailure, 0.95);\n  \n  // Round to 2 decimal places\n  probabilityOfFailure = Math.round(probabilityOfFailure * 100) / 100;\n  \n  // Build result object\n  results.push({\n    deviceId: deviceId,\n    equipmentType: equipmentType,\n    probabilityOfFailure: probabilityOfFailure,\n    sensorReadings: {\n      vibration: vibration,\n      temperature: temperature,\n      errorCodes: errorCodes\n    },\n    timeWindow: '72h'\n  });\n}\n\nreturn results.map(result => ({ json: result }));"
+      },
+      "id": "8a2dc5f5-474e-441d-906b-634c0d838c34",
+      "name": "Calculate Probability of Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Calculate Probability of Failure').item.json.probabilityOfFailure }}",
+              "rightValue": "={{ $('Workflow Configuration').first().json.failureThreshold }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2e5a8913-ef62-466a-ac15-2f416f8e191d",
+      "name": "Check if High Failure Risk",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1008,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "hello ",
+        "options": {
+          "systemMessage": "You are the Logistics Agent for PraxisGuard, an autonomous medical equipment maintenance system.\n\nYour task is to proactively prevent equipment failures by:\n1. Checking inventory for required replacement parts using the Check Inventory API Tool\n2. Automatically ordering parts if inventory is low using the Order Parts API Tool\n3. Finding the soonest available maintenance slot using the Schedule Maintenance Tool\n4. Scheduling maintenance before the predicted failure occurs\n\nIMPORTANT:\n- Minimize patient care disruption by coordinating with hospital schedules\n- Ensure all parts are ordered and confirmed before scheduling maintenance\n- Provide clear summary of actions taken (parts ordered, maintenance scheduled)\n- Work autonomously without human intervention\n\nReturn a summary of all actions completed."
+        }
+      },
+      "id": "6c7a9f75-17a2-4a3c-96b3-d370f49d65e8",
+      "name": "Logistics Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1360,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Checks current inventory levels for medical equipment parts",
+        "url": "={{ $('Workflow Configuration').first().json.inventoryApiUrl }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "deviceType",
+              "value": "={{ $fromAI('deviceType', 'Type of medical equipment needing parts', 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c0326f75-ab74-4c5c-92c5-202b7317f187",
+      "name": "Check Inventory API Tool",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1360,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Automatically orders required parts for equipment maintenance",
+        "method": "POST",
+        "url": "={{ $('Workflow Configuration').first().json.orderPartsApiUrl }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "partId",
+              "value": "={{ $fromAI('partId', 'Part ID to order', 'string') }}"
+            },
+            {
+              "name": "quantity",
+              "value": "={{ $fromAI('quantity', 'Quantity to order', 'number', 1) }}"
+            },
+            {
+              "name": "deviceId",
+              "value": "={{ $fromAI('deviceId', 'Device ID needing parts', 'string') }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $fromAI('priority', 'Order priority level', 'string', 'high') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d7dee312-6e35-4de8-9834-1470b16a7650",
+      "name": "Order Parts API Tool",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1504,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Configuration').first().json.calendarId }}"
+        },
+        "start": "={{ $fromAI('startTime', 'Maintenance start time in ISO format', 'string') }}",
+        "end": "={{ $fromAI('endTime', 'Maintenance end time in ISO format', 'string') }}",
+        "additionalFields": {
+          "description": "={{ $fromAI('eventDescription', 'Maintenance details', 'string') }}",
+          "summary": "={{ $fromAI('eventTitle', 'Maintenance event title', 'string') }}"
+        }
+      },
+      "id": "57d3181d-6277-4e40-b0bb-52e51c7c82de",
+      "name": "Schedule Maintenance Tool",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1616,
+        496
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "YUC5t8KWQ28SOsst",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crisis-alert",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "19c5e84d-1fde-4ba0-b8ca-203b3da9ccfa",
+      "name": "Crisis Alert Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        784,
+        768
+      ],
+      "webhookId": "3d3fc2c1-97e3-4596-96d1-76b8aee5b5b4"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=CRITICAL EQUIPMENT FAILURE: {{ $json.body.deviceId }} ({{ $json.body.equipmentType }}) has failed unexpectedly. Location: {{ $json.body.location }}. Immediate backup required.",
+        "options": {
+          "systemMessage": "You are the Contingency Agent for PraxisGuard, handling critical medical equipment failures.\n\nYour task when equipment fails unexpectedly:\n1. Use the Search Hospital Network Tool to find the closest affiliated hospital with a verified, operational backup machine of the same type\n2. Use the Coordinate Transport Tool to immediately arrange transport and sterilization\n3. Prioritize speed and patient safety above all else\n4. Ensure zero downtime for critical patient care\n\nIMPORTANTS:\n- Only search authorized, affiliated hospitals in the secure network\n- Verify equipment is operational and available before coordinating transport\n- Coordinate sterilization protocols during transport\n- Work autonomously in crisis situations\n\nReturn a summary of backup equipment located and transport coordination status."
+        }
+      },
+      "id": "34dcf56b-bbd5-46c5-bf2b-7c2432600a59",
+      "name": "Contingency Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1152,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Searches affiliated hospital network for available backup medical equipment",
+        "url": "={{ $('Workflow Configuration').first().json.hospitalNetworkApiUrl }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "equipmentType",
+              "value": "={{ $fromAI('equipmentType', 'Type of equipment needed', 'string') }}"
+            },
+            {
+              "name": "location",
+              "value": "={{ $fromAI('location', 'Current hospital location', 'string') }}"
+            },
+            {
+              "name": "status",
+              "value": "operational"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "56d52666-43cd-4699-abc7-cf8ed324a6ff",
+      "name": "Search Hospital Network Tool",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1216,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Coordinates transport and sterilization of backup equipment from affiliated hospital",
+        "jsCode": "// Coordinate transport and sterilization\nconst equipmentId = $fromAI('equipmentId', 'ID of backup equipment', 'string');\nconst sourceHospital = $fromAI('sourceHospital', 'Hospital providing backup', 'string');\nconst destinationHospital = $fromAI('destinationHospital', 'Hospital receiving backup', 'string');\nconst estimatedTime = $fromAI('estimatedTime', 'Estimated transport time in minutes', 'number', 30);\n\n// Simulate transport coordination logic\nconst transportOrder = {\n  orderId: `TRANS-${Date.now()}`,\n  equipmentId: equipmentId,\n  from: sourceHospital,\n  to: destinationHospital,\n  status: 'coordinated',\n  estimatedArrival: estimatedTime,\n  sterilizationProtocol: 'standard-medical',\n  priority: 'critical'\n};\n\nreturn { transportOrder };"
+      },
+      "id": "f580b72d-3420-428a-a595-1e23f8547fb3",
+      "name": "Coordinate Transport Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        1344,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0A0B9N0QLS",
+          "mode": "list",
+          "cachedResultName": "all-praxis-guard"
+        },
+        "text": "=🚨 *PraxisGuard Alert*\n\n{{ $json.output || $json.text }}\n\n_Automated by PraxisGuard Maintenance System_",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "b8b76515-5d92-4d6d-9d31-5cad60553394",
+      "name": "Send Alert to Operations Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1824,
+        576
+      ],
+      "webhookId": "365bf357-2ace-482f-994b-282ee99f77a8",
+      "alwaysOutputData": false,
+      "retryOnFail": true,
+      "credentials": {
+        "slackApi": {
+          "id": "62Hy5P2khJ0sdvdK",
+          "name": "Slack account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxOutputTokens": 2048
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        496
+      ],
+      "id": "ef335ef6-4e4a-4f9a-971d-223c7006bcb6",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "bEuQGu3NL4qXiGUh",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        1008
+      ],
+      "id": "f7b9373b-d261-4427-a5f3-48b271b03168",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "W6RJfUzsw9aMFurt",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        2032,
+        608
+      ],
+      "id": "1980f059-bd44-4e39-b623-a3bdbe5305e3",
+      "name": "AI Agent"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Monitor Equipment Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Fetch IoT Sensor Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch IoT Sensor Data": {
+      "main": [
+        [
+          {
+            "node": "Calculate Probability of Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Probability of Failure": {
+      "main": [
+        [
+          {
+            "node": "Check if High Failure Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if High Failure Risk": {
+      "main": [
+        [
+          {
+            "node": "Logistics Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Check Inventory API Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Logistics Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Order Parts API Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Logistics Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Maintenance Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Logistics Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logistics Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Alert to Operations Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crisis Alert Webhook": {
+      "main": [
+        [
+          {
+            "node": "Contingency Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Hospital Network Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Contingency Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Coordinate Transport Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Contingency Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contingency Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Alert to Operations Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Logistics Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Contingency Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Alert to Operations Team": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7cee0da3-7a0f-41c1-993d-3921768068b1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "85bdf3b4b25a1256810dc3813cc2035768eda4ee7384b9e6c83578dae9aad9d5"
+  },
+  "id": "ShcuZJu0vTerIV3l",
+  "tags": []
+}

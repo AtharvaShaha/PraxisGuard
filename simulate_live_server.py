@@ -13,10 +13,14 @@ from core_db.models import SensorReading
 
 def simulate():
     print("LIVE DATA STREAMING... (Ctrl+C to stop)")
+    print("Generating HIGH vibration/temperature values to trigger alerts!")
     count = 0
     while True:
-        vib = np.random.normal(20, 2) if count < 10 else np.random.normal(85, 5)
-        temp = np.random.normal(45, 1) if count < 10 else np.random.normal(95, 3)
+        # Always generate HIGH values to trigger failure detection
+        # Vibration: 85 +/- 10 (threshold in n8n is 40-60)
+        # Temperature: 95 +/- 5 (threshold in n8n is 70-90)
+        vib = np.random.normal(85, 10)
+        temp = np.random.normal(95, 5)
         
         # Save to database
         SensorReading.objects.create(
@@ -24,7 +28,7 @@ def simulate():
             vibration=vib,
             temperature=temp
         )
-        print(f"Reading: Vib={vib:.1f}, Temp={temp:.1f} - Saved to DB")
+        print(f"[HIGH ALERT] Reading: Vib={vib:.1f}, Temp={temp:.1f} - Saved to DB")
         count += 1
         time.sleep(5)
 
